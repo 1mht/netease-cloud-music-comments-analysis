@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from sqlalchemy import create_engine, Column, String, Integer, ForeignKey, Table, Text, BigInteger, Boolean
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 

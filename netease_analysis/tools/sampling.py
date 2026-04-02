@@ -457,7 +457,7 @@ def save_comments_to_db(song_id: str, comments: List[Dict]) -> int:
 # ==================== 主入口 ====================
 
 
-def sample_comments_v6(
+def sample_comments(
     song_id: str, api_total: int, level: str = "standard", save_to_db: bool = True
 ) -> Dict[str, Any]:
     """
@@ -554,46 +554,31 @@ def sample_comments_v6(
     db_count_after = db_count_before + saved
 
     # 计算高赞数量（structural维度需要）
-    # 注意：这里统计的是“本轮抓到的样本”中的高赞数，DB里可能更多
+    # 注意：这里统计的是本轮抓到的样本中的高赞数，DB里可能更多
     high_likes_count = len([c for c in all_comments if c.get("liked_count", 0) >= 1000])
 
     result = {
         "status": "success",
         "level": level,
         "target": target,
-        # actual 表示 DB 可用于分析的总量（避免把“本轮新增”误读为总样本）
         "actual": db_count_after,
         "actual_new": saved,
-        "db": {"before": db_count_before, "after": db_count_after, "added": saved},
-        "samples": {
-            "hot": len(hot_comments),
-            "recent": len(recent_comments),
-            "yearly": len(yearly_comments),
-            # 兼容字段：total 仍表示本轮抓取的总条数
-            "total": fetched_total,
-            "saved_to_db": saved,
-            # 补充：本轮抓取/入库口径
-            "fetched": fetched_total,
-            "db_before": db_count_before,
-            "db_after": db_count_after,
-        },
+        "api_total": api_total,
+        "sample_rate": f"{db_count_after / api_total * 100:.2f}%" if api_total > 0 else "N/A",
         "coverage": {
             "publish_year": publish_year,
             "years_span": years_span,
             "years_sampled": len(year_dist),
             "year_distribution": year_dist,
         },
-        "quality": {
-            "high_likes_count": high_likes_count,
-            "sample_rate": f"{db_count_after / api_total * 100:.2f}%"
-            if api_total > 0
-            else "N/A",
+        "samples": {
+            "hot": len(hot_comments),
+            "recent": len(recent_comments),
+            "yearly": len(yearly_comments),
+            "high_likes": high_likes_count,
         },
-        "params_used": params,
+        "db": {"before": db_count_before, "after": db_count_after, "added": saved},
         "time_spent": f"{elapsed:.1f}s",
-        "ai_guidance": _generate_guidance(
-            level, target, db_count_after, years_span, len(year_dist), saved
-        ),
     }
 
     logger.info(
@@ -629,83 +614,23 @@ def _build_result_from_db(
             "target": target,
             "actual": db_count,
             "actual_new": 0,
+            "api_total": api_total,
+            "sample_rate": f"{db_count / api_total * 100:.2f}%" if api_total > 0 else "N/A",
             "note": "using_existing_db_data",
-            "db": {"before": db_count, "after": db_count, "added": 0},
-            "samples": {
-                "hot": 0,
-                "recent": 0,
-                "yearly": 0,
-                # 兼容字段：total 维持旧语义（此时=DB总量）
-                "total": db_count,
-                "saved_to_db": 0,
-                "fetched": 0,
-                "db_before": db_count,
-                "db_after": db_count,
-            },
             "coverage": {
                 "years_span": years_span,
                 "years_sampled": len(year_dist),
                 "year_distribution": dict(year_dist),
             },
-            "quality": {
-                "high_likes_count": high_likes,
-                "sample_rate": f"{db_count / api_total * 100:.2f}%"
-                if api_total > 0
-                else "N/A",
+            "samples": {
+                "hot": 0,
+                "recent": 0,
+                "yearly": 0,
+                "high_likes": high_likes,
             },
-            "ai_guidance": _generate_guidance(
-                level, target, db_count, years_span, len(year_dist), 0
-            ),
+            "db": {"before": db_count, "after": db_count, "added": 0},
         }
     finally:
         session.close()
 
 
-def _generate_guidance(
-    level: str,
-    target: int,
-    actual: int,
-    years_span: int,
-    years_sampled: int,
-    added: int = 0,
-) -> Dict:
-    """生成AI引导（口径：actual=DB可用于分析的总量）"""
-    # 评估数据充足性（按DB总量，而不是“本轮抓取量”）
-    if actual >= target * 0.9:
-        status = "sufficient"
-        message = (
-            f"DB now has {actual}/{target} comments (+{added} new), ready for analysis"
-        )
-    elif actual >= target * 0.5:
-        status = "acceptable"
-        message = f"DB now has {actual}/{target} comments (+{added} new), can analyze; consider upgrading"
-    else:
-        status = "insufficient"
-        message = f"DB only has {actual}/{target} comments (+{added} new), recommend deeper sampling"
-
-    # 年份覆盖评估
-    if years_span <= 2:
-        temporal_note = "New song, temporal analysis limited"
-    elif years_sampled >= years_span * 0.8:
-        temporal_note = f"Good year coverage: {years_sampled}/{years_span} years"
-    else:
-        temporal_note = f"Limited year coverage: {years_sampled}/{years_span} years"
-
-    # 推荐下一步
-    if status == "sufficient":
-        next_action = "get_analysis_signals_tool"
-        upgrade_option = None
-    else:
-        next_action = "get_analysis_signals_tool (or upgrade level)"
-        next_level = {"quick": "standard", "standard": "deep"}.get(level)
-        upgrade_option = (
-            f"sample_comments_tool(level='{next_level}')" if next_level else None
-        )
-
-    return {
-        "status": status,
-        "message": message,
-        "temporal_note": temporal_note,
-        "next_action": next_action,
-        "upgrade_option": upgrade_option,
-    }

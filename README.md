@@ -1,56 +1,20 @@
-# 🎵 NetEase Music MCP Server
+# 🎵 NetEase Music Comments Analysis
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-0.8.7-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Version](https://img.shields.io/badge/version-0.9.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
-![MCP](https://img.shields.io/badge/MCP-Compatible-purple.svg)
 
 **让 Claude 1分钟读懂几十万条网易云评论**
 
-[快速开始](#-快速开始) • [功能演示](#-实际效果) • [技术亮点](#-核心技术亮点) • [文档](#-文档)
+[快速开始](#-快速开始) • [技术亮点](#-核心技术亮点)
 
 </div>
 
 ---
 
-## 🎬 实际效果
-![alt text](docs/images/image.png)  
-
-![alt text](docs/images/image-1.png)
 > **传统方式：** 手动翻200万条评论？需要几天时间
 > **使用本工具：** 60秒采样 + AI分析，直接看到核心洞察
-
-### 真实案例：《晴天》评论区分析
-
-```
-你：帮我分析《晴天》的评论区
-
-Claude（60秒后）：
-📊 数据概览
-- 采样 600 条评论，覆盖 2003-2024 年（21年跨度）
-- API 显示总评论 62.4万条，覆盖率 0.1%
-
-🎯 核心发现
-1. 评论区类型：「青春回忆型」
-   - 核心关键词：青春、回忆、那年、十七岁
-   - 情感特征：怀旧为主（实际正面情感 80%+）
-
-2. 社交特征：「精英控场型」
-   - TOP10 评论占 43% 点赞
-   - 基尼系数 0.78（高度集中）
-   - 少数金句主导评论区氛围
-
-3. 时间演化：「持续活跃型」
-   - 2003年至今持续活跃
-   - 2020-2024年出现「复兴」现象
-   - 每个时代都有新的听众加入
-
-💬 代表性金句
-> "那年我们十七岁，现在我们已经三十岁了" —— 125000赞
-> "单曲循环到现在，眼泪还是会掉下来" —— 8500赞
-```
 
 ---
 
@@ -103,152 +67,95 @@ Claude（60秒后）：
 
 ### 前置要求
 - Python 3.8+
-- Claude Desktop
 
-### 1. 克隆并安装依赖
+### 1. 安装
+
 ```bash
-git clone https://github.com/1mht/netease-cloud-music-mcp.git
-cd netease-cloud-music-mcp
-pip install -r requirements.txt
+git clone https://github.com/1mht/netease-music-comments-analysis.git
+cd netease-music-comments-analysis
+pip install -e .
 ```
 
-### 2. 配置 Claude Desktop
+### 2. 安装 Skill
 
-编辑配置文件：
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+```bash
+# macOS / Linux
+cp -r skills/netease-music-comments-analysis ~/.claude/skills/
 
-添加配置：
-```json
-{
-  "mcpServers": {
-    "netease-music": {
-      "command": "python",
-      "args": ["你的路径/netease-cloud-music-mcp/mcp_server/server.py"]
-    }
-  }
-}
+# Windows (PowerShell)
+Copy-Item -Recurse skills\netease-music-comments-analysis $env:USERPROFILE\.claude\skills\
 ```
 
-> 💡 **提示**：将 `你的路径` 替换为实际的绝对路径
-> ⚠️ **注意**：配置文件必须是严格 JSON（属性名/字符串都要用双引号），否则 Claude Desktop 会报 `JSON.parse` 错误
+### 3. 验证
 
-### 3. 重启 Claude Desktop
+```bash
+ncm-analysis --version
+# → analysis, version 0.9.0
+```
 
-完成！现在可以在 Claude Desktop 中直接对话：
-- "帮我分析《晴天》的评论区"
-- "对比《晴天》和《七里香》的评论区"
-- "搜索歌曲 稻香"
+完成！在 Claude Code 中直接说"帮我分析《晴天》的评论区"，Claude 会自动触发 Skill 完成完整流程。
 
----
+### 手动 CLI 用法
 
-## 🎯 使用场景
-
-### 🎧 音乐爱好者
-- 发现歌曲背后的故事和文化现象
-- 了解不同时代听众的感受和共鸣
-- 找到情感共鸣的评论
-
-### 🎵 音乐创作者/运营
-- 了解听众真实反馈和情感需求
-- 分析竞品评论区的氛围特征
-- 发现可用于营销的高赞金句
-
-### 📊 研究者
-- 社会情感分析和时间序列研究
-- 音乐文化现象研究
-- 评论区生态和社交网络分析
+```bash
+ncm-analysis search "晴天"
+ncm-analysis select <session_id> 1
+ncm-analysis add <song_id>
+ncm-analysis sample <song_id> --level standard
+ncm-analysis overview <song_id>
+ncm-analysis signals <song_id>
+ncm-analysis samples <song_id>
+ncm-analysis search-comments <song_id> "青春" --limit 30
+ncm-analysis raw <song_id> --year 2020 --min-likes 100
+```
 
 ---
 
 ## 🛠 技术栈
 
-- **MCP Framework**: [FastMCP](https://github.com/jlowin/fastmcp)
 - **NLP 处理**: jieba 分词 + SnowNLP 情感分析
 - **数据存储**: SQLite
-- **API 逆向**: 网易云音乐 weapi（发现 cursor 参数）
+- **API 逆向**: 网易云音乐 weapi
+- **CLI**: Click
 
 ---
 
-## 📖 文档
+## 🗂 代码结构
 
-- [架构设计](ARCHITECTURE.md) - 系统设计理念和核心模块
-- [常见问题](docs/faq.md) - FAQ 和故障排除
-- [贡献指南](CONTRIBUTING.md) - 如何参与贡献
-
----
-
-## 🎨 项目特色
-
-### 渐进式分层分析架构
 ```
-Layer 0: 数据概览 → 告诉 AI 有多少数据、覆盖率
-Layer 1: 六维度信号 → 量化分析结果
-Layer 2: 验证样本 → 锚点样本 + 对比样本
-Layer 2.5: 关键词检索 → 在 DB 中验证关键词/主题信号
-Layer 3: 原始评论 → 按需深入查询
+netease_analysis/        # 核心分析逻辑
+├── tools/
+│   ├── search.py            # 搜索 + session 管理
+│   ├── data_collection.py   # 入库（元数据/热评/最新评论）
+│   ├── sampling.py          # 三级采样（quick/standard/deep）
+│   ├── pagination_sampling.py  # offset + cursor 分页采样
+│   ├── layered_analysis.py  # 五层分析入口（Layer 0-3）
+│   ├── dimension_analyzers.py  # 六维度算法实现
+│   ├── comprehensive_analysis.py  # Layer 3 原始评论查询
+│   ├── sample_selector.py   # 验证样本选取策略
+│   ├── cross_dimension.py   # 跨维度关联分析
+│   ├── data_transparency.py # 数据透明度报告
+│   └── workflow_errors.py   # 错误类型定义
+├── schemas/             # 数据结构定义
+└── knowledge/           # 平台知识库（文化背景/触发规则）
+
+netease_cloud_music/     # 网易云 API 层
+analysis_cli/            # CLI 入口（Click）
+skills/                  # Skill 定义文件
 ```
 
-这种设计让 AI 可以：
-- ✅ 先了解数据边界，决定是否需要采样
-- ✅ 查看量化信号，发现模式和异常
-- ✅ 阅读真实样本，验证算法判断
-- ✅ 按需深入，避免信息过载
+### 分析流程
+
+```
+search → select → add → sample
+                           ↓
+          Layer 0: 数据边界（评论量/覆盖率/时间跨度）
+          Layer 1: 六维度信号（情感/内容/时间/结构/社交/语言）
+          Layer 2: 验证样本（锚点样本 + 对比样本）
+          Layer 2.5: 关键词检索（DB 内验证）
+          Layer 3: 原始评论（按年份/点赞数筛选）
+```
+
+**设计原则**：工具提供数据和样本，ai负责判断且每层透明标注置信度和局限性。
 
 ---
-
-## 🤝 贡献
-
-欢迎提 Issue 和 PR！
-
-如果你有好的想法或发现了 bug，请：
-1. Fork 本项目
-2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交你的改动 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开一个 Pull Request
-
-详见 [CONTRIBUTING.md](CONTRIBUTING.md)
-
----
-
-## 📝 Roadmap
-
-- [ ] 支持 QQ 音乐
-- [ ] 支持 Spotify
-- [ ] 歌单整体分析
-- [ ] 歌曲对比分析优化
-- [ ] Web 版本（降低使用门槛）
-- [ ] Docker 镜像
-
----
-
-## ⚖️ License
-
-本项目采用 MIT License - 详见 [LICENSE](LICENSE) 文件
-
----
-
-## 🌟 Star History
-
-如果这个项目对你有帮助，请给个 ⭐️ 支持一下！
-
-[![Star History Chart](https://api.star-history.com/svg?repos=1mht/netease-cloud-music-mcp&type=Date)](https://star-history.com/#1mht/netease-cloud-music-mcp&Date)
-
----
-
-## 📧 联系方式
-
-- **GitHub Issues**: [提问题](https://github.com/1mht/netease-cloud-music-mcp/issues)
-- **项目主页**: https://github.com/1mht/netease-cloud-music-mcp
-
----
-
-<div align="center">
-
-**Made with ❤️ by [1mht](https://github.com/1mht)**
-
-*让 AI 读懂评论区背后的故事*
-
-</div>

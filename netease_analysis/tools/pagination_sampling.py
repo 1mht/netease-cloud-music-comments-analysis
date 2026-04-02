@@ -38,7 +38,7 @@ if netease_path not in sys.path:
     sys.path.insert(0, netease_path)
 
 from database import init_db, Song, Comment
-from mcp_server.tools.workflow_errors import workflow_error  # v0.6.6: 统一错误处理
+from netease_analysis.tools.workflow_errors import workflow_error  # v0.6.6: 统一错误处理
 
 # 配置
 PAGE_SIZE = 20  # 与collector.py保持一致
@@ -837,7 +837,7 @@ def get_cultural_context(song_id: str) -> Dict[str, Any]:
             "usage": "AI可以用这些背景知识理解评论区的'黑话'和文化现象"
         }
     """
-    from mcp_server.knowledge import KnowledgeLoader
+    from netease_analysis.knowledge import KnowledgeLoader
 
     session = get_session()
     try:

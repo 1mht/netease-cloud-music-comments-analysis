@@ -6,7 +6,10 @@
 import sys
 import os
 import uuid
+import json
+import time
 from typing import Dict, List, Optional
+from pathlib import Path
 
 # 添加 netease_cloud_music 到 Python 路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -17,17 +20,34 @@ if netease_path not in sys.path:
 
 from get_song_id import search_songs as netease_search_songs
 
-# 搜索会话存储（临时存储搜索结果）
-# 格式：{session_id: {"results": [...], "keyword": "...", "timestamp": ...}}
-_search_sessions: Dict[str, Dict] = {}
+# Session 持久化文件（跨进程共享）
+_SESSION_FILE = Path.home() / ".ncm-analysis-sessions.json"
+_SESSION_TTL = 3600  # 1小时过期
 
 
-def search_songs(keyword: str, limit: int = 10):
+def _load_sessions() -> Dict:
+    if not _SESSION_FILE.exists():
+        return {}
+    try:
+        data = json.loads(_SESSION_FILE.read_text(encoding="utf-8"))
+        # 清理过期 session
+        now = time.time()
+        return {k: v for k, v in data.items() if now - v.get("timestamp", 0) < _SESSION_TTL}
+    except Exception:
+        return {}
+
+
+def _save_sessions(sessions: Dict):
+    _SESSION_FILE.write_text(json.dumps(sessions, ensure_ascii=False), encoding="utf-8")
+
+
+def search_songs(keyword: str, limit: int = 10, offset: int = 0):
     """搜索网易云音乐
 
     Args:
         keyword: 搜索关键词，支持"歌名 歌手"格式
         limit: 返回结果数量，默认10
+        offset: 分页偏移量，默认0
 
     Returns:
         搜索结果列表 (list)，如果没有结果返回空列表 []
@@ -50,7 +70,7 @@ def search_songs(keyword: str, limit: int = 10):
         ]
     """
     try:
-        results = netease_search_songs(keyword, limit=limit, offset=0)
+        results = netease_search_songs(keyword, limit=limit, offset=offset)
         return results if results else []
     except Exception as e:
         print(f"[搜索错误] {e}", file=sys.stderr)
@@ -79,14 +99,14 @@ def format_search_results(results, keyword):
     # 生成唯一 session_id
     session_id = f"search_{uuid.uuid4().hex[:12]}"
 
-    # 保存搜索结果到临时存储
-    import time
-
-    _search_sessions[session_id] = {
+    # 保存搜索结果到持久化文件
+    sessions = _load_sessions()
+    sessions[session_id] = {
         "results": results,
         "keyword": keyword,
         "timestamp": time.time(),
     }
+    _save_sessions(sessions)
 
     # ===== Phase 2: 去中心化决策 - 提供元数据而非判断 =====
     # 不再做"原版/翻唱"判断，提供丰富信息让用户决定
@@ -98,7 +118,7 @@ def format_search_results(results, keyword):
         album = song.get("album", "未知专辑")
 
         # 获取时长（转换为分:秒格式）
-        duration_ms = song.get("duration", 0)
+        duration_ms = song.get("duration_ms", 0)
         duration_str = (
             f"{duration_ms // 60000}:{duration_ms % 60000 // 1000:02d}"
             if duration_ms > 0
@@ -119,23 +139,6 @@ def format_search_results(results, keyword):
         "keyword": keyword,
         "count": len(results),
         "choices": choices,
-        "must_ask_user": True,
-        "next_step": f"""⛔ 严禁自作主张选择！必须让用户决定！
-
-找到 {len(results)} 首歌曲，请展示给用户：
-{chr(10).join(choices)}
-
-【正确做法】
-1. 将以上列表展示给用户
-2. 询问："请选择第几首？"
-3. ⛔ 停在这里！等待用户回复！
-4. 用户回复后才能调用 confirm_song_selection_tool
-
-【严禁行为】
-❌ 不要自己选择第1首
-❌ 不要判断"用户可能想要xxx"
-❌ 不要在用户回复前调用confirm
-""",
     }
 
 
@@ -149,15 +152,16 @@ def confirm_song_selection(session_id: str, choice_number: int) -> dict:
     Returns:
         选中的歌曲信息，包含 song_id
     """
-    # 检查 session 是否存在
-    if session_id not in _search_sessions:
+    # 从持久化文件读取 session
+    sessions = _load_sessions()
+    if session_id not in sessions:
         return {
             "status": "error",
-            "message": f"无效的 session_id: {session_id}",
-            "suggestion": "请先调用 search_songs_tool 进行搜索",
+            "message": f"无效的 session_id: {session_id}（已过期或不存在）",
+            "suggestion": "请重新调用 ncm-analysis search 进行搜索",
         }
 
-    session = _search_sessions[session_id]
+    session = sessions[session_id]
     results = session["results"]
 
     # 验证选择范围
@@ -171,8 +175,9 @@ def confirm_song_selection(session_id: str, choice_number: int) -> dict:
     # 获取选中的歌曲（转为0-based索引）
     selected_song = results[choice_number - 1]
 
-    # 清理已使用的 session（节省内存）
-    del _search_sessions[session_id]
+    # 清理已使用的 session
+    del sessions[session_id]
+    _save_sessions(sessions)
 
     # v0.6.6: 添加next_step引导AI完成后续workflow
     song_id = selected_song["id"]
@@ -185,24 +190,4 @@ def confirm_song_selection(session_id: str, choice_number: int) -> dict:
         "song_name": song_name,
         "artists": selected_song.get("artists", ["未知"]),
         "album": selected_song.get("album", "未知专辑"),
-        "full_info": selected_song,
-        "message": f"✅ 已确认选择：{song_name} - {artists_str}",
-        "next_step": f"""
-【workflow引导 - v0.6.6】
-
-✅ 已确认歌曲：{song_name} - {artists_str}
-📋 song_id: {song_id}
-
-下一步操作（根据用户需求选择）:
-
-1️⃣ 如果需要分析评论/可视化:
-   → 调用 add_song_to_database(song_id="{song_id}")
-   → 然后调用 get_comments_by_pages_tool(song_id="{song_id}", data_source="api", pages=[1,2,3])
-   → 最后调用分析/可视化工具
-
-2️⃣ 如果只是查询歌曲信息:
-   → 已完成，可直接告知用户歌曲信息
-
-⚠️ 大多数分析工具需要歌曲已入库，请遵循步骤1的流程
-""",  # v0.6.6: 引导AI理解正确的workflow
     }

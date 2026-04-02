@@ -31,7 +31,4 @@ tmp.txt
 .DS_Store
 Thumbs.db
 
-# Private Documentation (不公开的核心设计文档)
-report.md
-design-decisions.md
-business-plan.md
+.claude/

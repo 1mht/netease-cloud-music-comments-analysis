@@ -32,7 +32,7 @@ knowledge/
 ### 1. 基础用法
 
 ```python
-from mcp_server.knowledge import get_platform_domain_knowledge
+from netease_analysis.knowledge import get_platform_domain_knowledge
 
 # 获取平台知识
 knowledge = get_platform_domain_knowledge()
@@ -42,7 +42,7 @@ print(knowledge['platform'])  # "netease_cloud_music"
 ### 2. 高级用法
 
 ```python
-from mcp_server.knowledge import KnowledgeLoader
+from netease_analysis.knowledge import KnowledgeLoader
 
 loader = KnowledgeLoader()
 
@@ -62,7 +62,7 @@ loader.reload_knowledge('cultural_context')
 
 ```python
 # 旧代码仍然有效
-from mcp_server.knowledge import get_platform_domain_knowledge
+from netease_analysis.knowledge import get_platform_domain_knowledge
 knowledge = get_platform_domain_knowledge()  # ✅ 正常工作
 ```
 

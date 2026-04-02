@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-@Time : 2024/4/19 16:40
-@Author : ChenXiaoliang
-@Email : middlegod@sina.com
-@File : utils.py
-"""
 import random
 import math
 from Crypto.Cipher import AES

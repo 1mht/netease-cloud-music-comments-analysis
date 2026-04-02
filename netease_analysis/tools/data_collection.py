@@ -114,6 +114,7 @@ def add_song_basic(
 
         # 3. 获取热门评论（前50条，按点赞数排序）
         hot_comments_count = 0
+        api_total_comments = 0
         try:
             url = f"http://music.163.com/api/v1/resource/comments/R_SO_4_{song_id}?limit=50&offset=0"
             headers = {
@@ -123,6 +124,7 @@ def add_song_basic(
 
             if response.status_code == 200:
                 data = response.json()
+                api_total_comments = data.get("total", 0)
                 hot_comments = data.get("comments", [])
                 if hot_comments:
                     save_comments(session, song_id, hot_comments)
@@ -157,6 +159,7 @@ def add_song_basic(
             "status": "success",
             "song_id": song_id,
             "song_name": song_data.get("name"),
+            "api_total_comments": api_total_comments,
             "data_collected": {
                 "metadata": True,
                 "lyric": lyric_saved,
@@ -164,7 +167,6 @@ def add_song_basic(
                 "recent_comments": recent_comments_count,
                 "total_comments": total_comments,
             },
-            "message": f"基础数据已保存（{total_comments}条评论）。如需完整数据分析，可使用 crawl_all_comments() 获取全部评论。",
         }
 
     except Exception as e:

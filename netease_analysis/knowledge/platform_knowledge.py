@@ -7,7 +7,7 @@
 - 本文件仅作为兼容层
 
 请使用：
-from mcp_server.knowledge import get_platform_domain_knowledge
+from netease_analysis.knowledge import get_platform_domain_knowledge
 """
 
 from .knowledge_loader import get_platform_domain_knowledge

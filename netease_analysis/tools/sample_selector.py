@@ -763,8 +763,19 @@ def select_anchor_and_contrast_samples(
         "anchors": selector.select_anchor_samples(),
     }
 
-    # 对比样本需要分数
+    # 构建 id→score 映射，注入到 anchors
     if scores:
+        score_map = {}
+        for c, s in scores:
+            cid = str(getattr(c, "comment_id", "") or "")
+            if cid:
+                score_map[cid] = round(s, 3)
+
+        for key in ("most_liked", "earliest", "latest", "longest"):
+            for sample in result["anchors"].get(key, []):
+                sid = str(sample.get("id", ""))
+                sample["algorithm_score"] = score_map.get(sid)
+
         result["contrast"] = selector.select_contrast_samples(scores)
     else:
         result["contrast"] = {

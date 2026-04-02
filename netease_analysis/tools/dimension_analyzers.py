@@ -766,7 +766,7 @@ def analyze_temporal_v2(comments: List[Any]) -> dict:
         "ai_guidance": {
             "focus_on": "时间覆盖范围和缺失年份，热评集中的年份",
             "ignore": "年份间的数量比较（采样偏差）",
-            "next_step": "如需深入分析特定年份，可调用get_raw_comments_v2(year=XXXX)",
+            "next_step": "如需深入分析特定年份，可调用get_raw_comments(year=XXXX)",
         },
     }
 
@@ -1130,7 +1130,7 @@ def _empty_result(dim_id: str, dim_name: str) -> dict:
 # ===== 统一入口 =====
 
 
-def analyze_all_dimensions_v2(
+def analyze_all_dimensions(
     comments: List[Any], include_anchor_contrast: bool = True
 ) -> Dict[str, Any]:
     """
@@ -1168,7 +1168,7 @@ def analyze_all_dimensions_v2(
     if include_anchor_contrast and comments:
         try:
             # 修复导入路径：使用相对导入
-            from mcp_server.tools.sample_selector import (
+            from netease_analysis.tools.sample_selector import (
                 select_anchor_and_contrast_samples,
             )
 

@@ -7,7 +7,7 @@ v0.7.6 综合分析工具（透明化版）
 
 工具：
 1. analyze_comments_v2() - 返回透明化的六维度分析
-2. get_raw_comments_v2() - 获取原始评论（AI往下看）
+2. get_raw_comments() - 获取原始评论（AI往下看）
 """
 
 import sys
@@ -24,14 +24,14 @@ if netease_path not in sys.path:
     sys.path.insert(0, netease_path)
 
 from database import init_db, Song, Comment
-from mcp_server.tools.workflow_errors import workflow_error
-from mcp_server.tools.dimension_analyzers_v2 import analyze_all_dimensions_v2
-from mcp_server.tools.data_transparency import (
+from netease_analysis.tools.workflow_errors import workflow_error
+from netease_analysis.tools.dimension_analyzers import analyze_all_dimensions
+from netease_analysis.tools.data_transparency import (
     create_transparency_report,
     assess_sample_adequacy,
     N_MIN_STANDARD,
 )
-from mcp_server.tools.cross_dimension import detect_cross_signals
+from netease_analysis.tools.cross_dimension import detect_cross_signals
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +103,7 @@ def analyze_comments_v2(
         sampling_report = None
 
         # ===== 3. 采样决策（v0.8.2: 智能决策，按维度评估） =====
-        from mcp_server.tools.sampling_decision import (
+        from netease_analysis.tools.sampling_decision import (
             smart_sampling_decision,
             execute_smart_sampling,
         )
@@ -139,11 +139,11 @@ def analyze_comments_v2(
         # ===== 4. 自动采样（v0.8.2: 按维度需求补充采样） =====
         if auto_sample and triggered:
             try:
-                from mcp_server.tools.sampling_v5 import (
+                from netease_analysis.tools.sampling_v5 import (
                     sample_comments_v5,
                     SamplingConfig,
                 )
-                from mcp_server.tools.pagination_sampling import (
+                from netease_analysis.tools.pagination_sampling import (
                     get_real_comments_count_from_api,
                 )
                 from collections import defaultdict
@@ -238,7 +238,7 @@ def analyze_comments_v2(
                 logger.warning(f"[采样] 失败: {e}")
 
         # ===== 4. 分析所有维度（v2格式） =====
-        dimensions_result = analyze_all_dimensions_v2(comments)
+        dimensions_result = analyze_all_dimensions(comments)
 
         # ===== 5. 构建元信息 =====
         timestamps = [
@@ -412,7 +412,7 @@ def analyze_comments_v2(
             "step3_verification_samples": step3_verification_samples,
             # ===== 需要深入时看 =====
             "step4_if_needed": {
-                "action": "调用 get_raw_comments_v2_tool(song_id, year=X, min_likes=Y)",
+                "action": "调用 get_raw_comments_tool(song_id, year=X, min_likes=Y)",
                 "when": "step3样本不足以下结论时",
             },
             # ===== 详细数据（备查）=====
@@ -571,7 +571,7 @@ def get_dimension_samples_v2(
     return {"status": "success", "dimension": dimension, "all_samples": samples}
 
 
-def get_raw_comments_v2(
+def get_raw_comments(
     song_id: str, year: int = None, min_likes: int = 0, limit: int = 20
 ) -> Dict[str, Any]:
     """
@@ -643,5 +643,5 @@ def get_raw_comments_v2(
 __all__ = [
     "analyze_comments_v2",
     "get_dimension_samples_v2",
-    "get_raw_comments_v2",
+    "get_raw_comments",
 ]

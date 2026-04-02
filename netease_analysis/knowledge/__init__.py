@@ -7,7 +7,7 @@
 - 向后兼容: 旧的导入路径仍然有效
 
 使用方式：
->>> from mcp_server.knowledge import get_platform_domain_knowledge
+>>> from netease_analysis.knowledge import get_platform_domain_knowledge
 >>> knowledge = get_platform_domain_knowledge()
 """
 
